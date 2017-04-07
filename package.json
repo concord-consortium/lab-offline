@@ -1,0 +1,17 @@
+{
+  "name": "lab-offline",
+  "version": "0.1.0",
+  "description": "",
+  "main": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Piotr Janik <janikpiotrek@gmail.com>",
+  "dependencies": {
+    "fs-extra": "^2.1.2",
+    "fstream": "^1.0.11",
+    "klaw-sync": "^1.1.2",
+    "node-fetch": "^1.6.3",
+    "tar": "^2.2.1"
+  }
+}
