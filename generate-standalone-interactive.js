@@ -11,8 +11,10 @@ const jsmolOfflineUrl = 'https://models-resources.concord.org/jsmol/jsmol-offlin
 const libBasePathPlaceholder = '<<lib-base-path>>';
 const interactivePlaceholder = '//<<interactive-definition>>';
 
-module.exports = function downloadInteractive(interactiveUrl) {
-  const name = interactiveUrl.replace(/\//g, '-').replace('.json', '') + '-' + Date.now();
+// Input: interactive path, e.g.: interactives/itsi/bond-types/3-electronegativity-orbitals-charge.json
+// Output: path of the .tar.gz archive with standalone interactive page and all necessary libraries and resources.
+module.exports = function generateStandaloneInteractive(interactivePath) {
+  const name = interactivePath.replace(/\//g, '-').replace('.json', '') + '-' + Date.now();
   const outputPath = path.join('/tmp', name);
   // Some of those constants could be changed into configurable options,
   // that's why they're within downloadInteractive scope.
@@ -60,14 +62,19 @@ module.exports = function downloadInteractive(interactiveUrl) {
   }
 
   function saveImg(imgUrl, imagePath) {
-    return fetch(imgUrl).then(res => {
-      // Note that imagePath can include directory, e.g. 'images/img.png'.
-      const dir = path.join(outputPath, interactivesResourcePath, interactiveName, path.dirname(imagePath));
-      fs.ensureDirSync(dir);
-      const filePath = path.join(dir, path.basename(imagePath));
-      const dest = fs.createWriteStream(filePath);
-      res.body.pipe(dest);
-      console.log('Saved: ', path.basename(imgUrl), 'to:', filePath);
+    return new Promise(resolve => {
+      fetch(imgUrl)
+        .then(res => {
+          // Note that imagePath can include directory, e.g. 'images/img.png'.
+          const dir = path.join(outputPath, interactivesResourcePath, interactiveName, path.dirname(imagePath));
+          fs.ensureDirSync(dir);
+          const filePath = path.join(dir, path.basename(imagePath));
+          const dest = fs.createWriteStream(filePath);
+          res.body.pipe(dest);
+          dest.on('finish', () => {
+            resolve(filePath);
+          });
+        });
     });
   }
 
@@ -168,7 +175,7 @@ module.exports = function downloadInteractive(interactiveUrl) {
       });
   }
 
-  const interactivePromise = fetch(`${labHost}/${interactiveUrl}`)
+  const interactivePromise = fetch(`${labHost}/${interactivePath}`)
     .then(res => res.json())
     .then(interactive => downloadJSmolIfNecessary(interactive))
     .then(interactive => downloadInteractiveImages(interactive))
