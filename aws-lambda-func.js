@@ -2,6 +2,9 @@ const fs = require('fs-extra');
 const generateStandaloneInteractive = require('./generate-standalone-interactive');
 const uploadToS3 = require('./upload-to-s3');
 
+// Test:
+// https://tv4jg3zewi.execute-api.us-east-1.amazonaws.com/production/interactive?interactivePath=interactives/itsi/bond-types/3-electronegativity-orbitals-charge.json
+
 function getResponse(url) {
   return {
     url: url
