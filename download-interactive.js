@@ -8,6 +8,7 @@ const fetch = require('node-fetch');
 
 const labHost = 'https://lab.concord.org';
 const labStandaloneUrl = 'http://lab.concord.org/standalone/lab-interactive.tar.gz';
+const jsmolOfflineUrl = 'https://models-resources.concord.org/jsmol/jsmol-offline.tar.gz';
 const libBasePathPlaceholder = '<<lib-base-path>>';
 const interactivePlaceholder = '//<<interactive-definition>>';
 
@@ -17,7 +18,38 @@ module.exports = function downloadInteractive(interactiveUrl, callback) {
   // that's why they're within downloadInteractive scope.
   const interactiveName = 'interactive';
   const interactivesResourcePath = 'interactive-resources/';
-  const libBasePath = 'lab-interactive/';
+  const libBasePath = 'lib/';
+
+  function downloadAndExtractArchive(url) {
+    return fetch(url)
+      .then(res => {
+        return new Promise(resolve => {
+          const dir = path.join(outputPath, libBasePath);
+          fs.ensureDirSync(dir);
+          const extr = tar.Extract({path: dir});
+          res.body
+            .pipe(zlib.Unzip())
+            .pipe(extr);
+          extr.on('finish', resolve);
+        });
+      });
+  }
+
+  function compressOutput() {
+    return new Promise(resolve => {
+      const archive = `${outputPath}.tar.gz`;
+      const dest = fs.createWriteStream(archive);
+      fstream.Reader({path: outputPath, type: 'Directory'})
+        .pipe(tar.Pack({noProprietary: true}))
+        .pipe(zlib.Gzip())
+        .pipe(dest);
+      dest.on('finish', () => {
+        fs.remove(outputPath, () => {
+          resolve(archive);
+        });
+      });
+    });
+  }
 
   function saveInteractive(interactive) {
     const template = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf-8');
@@ -27,11 +59,12 @@ module.exports = function downloadInteractive(interactiveUrl, callback) {
     fs.writeFileSync(outputFile, output);
   }
 
-  function saveImg(imgUrl) {
+  function saveImg(imgUrl, imagePath) {
     return fetch(imgUrl).then(res => {
-      const dir = path.join(outputPath, interactivesResourcePath, interactiveName);
+      // Note that imagePath can include directory, e.g. 'images/img.png'.
+      const dir = path.join(outputPath, interactivesResourcePath, interactiveName, path.dirname(imagePath));
       fs.ensureDirSync(dir);
-      const filePath = path.join(dir, path.basename(imgUrl));
+      const filePath = path.join(dir, path.basename(imagePath));
       const dest = fs.createWriteStream(filePath);
       res.body.pipe(dest);
       console.log('Saved: ', path.basename(imgUrl), 'to:', filePath);
@@ -49,15 +82,33 @@ module.exports = function downloadInteractive(interactiveUrl, callback) {
     if (!imagePath && modelDef.url) {
       imagePath = modelDef.url.slice(0, modelDef.url.lastIndexOf('/') + 1);
     }
-    const imageUrls = images.map(i => `${labHost}/${imagePath}${imageMapping[i.imageUri] || i.imageUri}`);
-    return Promise.all(imageUrls.map(imgUrl => saveImg(imgUrl)))
+    const imageUrls = images.map(i => {
+      const path = imageMapping[i.imageUri] || i.imageUri;
+      return {
+        url: `${labHost}/${imagePath}${path}`,
+        path
+      };
+    });
+    return Promise.all(imageUrls.map(i => saveImg(i.url, i.path)))
       .then(_ => model);
+  }
+
+  function downloadJSmolIfNecessary(interactive) {
+    return new Promise(resolve => {
+      const interactiveText = JSON.stringify(interactive);
+      if (interactiveText.indexOf('https://models-resources.concord.org/jsmol') !== -1) {
+        downloadAndExtractArchive(jsmolOfflineUrl).then(_ => resolve(interactive));
+      } else {
+        resolve(interactive);
+      }
+    });
   }
 
   function downloadInteractiveImages(interactive) {
     const externalUrl = /^https?:\/\//i;
     const downloadPromises = interactive.components.filter(c => c.type === 'image').map(imgDef => {
       let imgUrl = imgDef.src;
+      let imgPath = path.basename(imgUrl);
       if (!externalUrl.test(imgUrl)) {
         let basePath = '';
         if (!imgDef.urlRelativeTo || imgDef.urlRelativeTo === 'model') {
@@ -65,12 +116,13 @@ module.exports = function downloadInteractive(interactiveUrl, callback) {
           // Remove <model-name>.json from url.
           basePath = basePath.slice(0, basePath.lastIndexOf('/') + 1);
         }
+        imgPath = imgUrl;
         imgUrl = `${labHost}/${basePath}${imgUrl}`;
       }
       // Update component so it works locally.
       imgDef.urlRelativeTo = 'page';
       imgDef.src = `${interactivesResourcePath}${interactiveName}/${path.basename(imgUrl)}`;
-      return saveImg(imgUrl);
+      return saveImg(imgUrl, imgPath);
     });
     return Promise.all(downloadPromises)
       .then(_ => interactive);
@@ -118,34 +170,13 @@ module.exports = function downloadInteractive(interactiveUrl, callback) {
 
   const interactivePromise = fetch(`${labHost}/${interactiveUrl}`)
     .then(res => res.json())
+    .then(interactive => downloadJSmolIfNecessary(interactive))
     .then(interactive => downloadInteractiveImages(interactive))
     .then(interactive => processInteractive(interactive))
     .then(interactive => saveInteractive(interactive));
 
-  const labDownloadPromise = fetch(labStandaloneUrl)
-    .then(res => {
-      return new Promise(resolve => {
-        const dest = path.join(outputPath);
-        const extr = tar.Extract({path: dest});
-        res.body
-          .pipe(zlib.Unzip())
-          .pipe(extr);
-        extr.on('finish', resolve);
-      });
-    });
+  const labDownloadPromise = downloadAndExtractArchive(labStandaloneUrl);
 
-  Promise.all([interactivePromise, labDownloadPromise])
-    .then(_ => {
-      return new Promise(resolve => {
-        const archive = `${outputPath}.tar`;
-        const dest = fs.createWriteStream(archive);
-        fstream.Reader({path: outputPath, type: 'Directory'})
-          .pipe(tar.Pack({noProprietary: true}))
-          .pipe(dest);
-        dest.on('finish', () => {
-          resolve(archive);
-        });
-      });
-    })
-    .then(archive => callback(archive));
+  return Promise.all([interactivePromise, labDownloadPromise])
+    .then(compressOutput)
 };
