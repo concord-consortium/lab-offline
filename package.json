@@ -8,6 +8,7 @@
   },
   "author": "Piotr Janik <janikpiotrek@gmail.com>",
   "dependencies": {
+    "aws-sdk": "^2.40.0",
     "fs-extra": "^2.1.2",
     "fstream": "^1.0.11",
     "klaw-sync": "^1.1.2",

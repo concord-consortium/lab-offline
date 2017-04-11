@@ -2,7 +2,6 @@ const zlib = require('zlib');
 const path = require('path');
 const tar = require('tar');
 const fstream = require("fstream");
-const crypto = require('crypto');
 const fs = require('fs-extra');
 const fetch = require('node-fetch');
 
@@ -12,8 +11,9 @@ const jsmolOfflineUrl = 'https://models-resources.concord.org/jsmol/jsmol-offlin
 const libBasePathPlaceholder = '<<lib-base-path>>';
 const interactivePlaceholder = '//<<interactive-definition>>';
 
-module.exports = function downloadInteractive(interactiveUrl, callback) {
-  const outputPath = path.join('/tmp', crypto.randomBytes(16).toString("hex"));
+module.exports = function downloadInteractive(interactiveUrl) {
+  const name = interactiveUrl.replace(/\//g, '-').replace('.json', '') + '-' + Date.now();
+  const outputPath = path.join('/tmp', name);
   // Some of those constants could be changed into configurable options,
   // that's why they're within downloadInteractive scope.
   const interactiveName = 'interactive';
