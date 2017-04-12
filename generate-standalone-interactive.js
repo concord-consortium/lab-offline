@@ -113,7 +113,8 @@ module.exports = function generateStandaloneInteractive(interactivePath) {
 
   function downloadInteractiveImages(interactive) {
     const externalUrl = /^https?:\/\//i;
-    const downloadPromises = interactive.components.filter(c => c.type === 'image').map(imgDef => {
+    const components = interactive.components || [];
+    const downloadPromises = components.filter(c => c.type === 'image').map(imgDef => {
       let imgUrl = imgDef.src;
       let imgPath = path.basename(imgUrl);
       if (!externalUrl.test(imgUrl)) {
