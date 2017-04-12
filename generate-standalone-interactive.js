@@ -9,6 +9,7 @@ const labHost = 'https://lab.concord.org';
 const labStandaloneUrl = 'http://lab.concord.org/standalone/lab-interactive.tar.gz';
 const jsmolOfflineUrl = 'https://models-resources.concord.org/jsmol/jsmol-offline.tar.gz';
 const libBasePathPlaceholder = '<<lib-base-path>>';
+const interactivePathPlaceholder = '<<interactive-path>>';
 const interactivePlaceholder = '//<<interactive-definition>>';
 
 // Input: interactive path, e.g.: interactives/itsi/bond-types/3-electronegativity-orbitals-charge.json
@@ -55,8 +56,10 @@ module.exports = function generateStandaloneInteractive(interactivePath) {
 
   function saveInteractive(interactive) {
     const template = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf-8');
-    let output = template.replace(new RegExp(libBasePathPlaceholder, 'gm'), libBasePath);
-    output = output.replace(interactivePlaceholder, 'window.INTERACTIVE = ' + JSON.stringify(interactive, null, 2));
+    const output = template
+      .replace(new RegExp(libBasePathPlaceholder, 'gm'), libBasePath)
+      .replace(interactivePathPlaceholder, interactivePath)
+      .replace(interactivePlaceholder, 'window.INTERACTIVE = ' + JSON.stringify(interactive, null, 2));
     const outputFile = path.join(outputPath, `${interactiveName}.html`);
     fs.writeFileSync(outputFile, output);
   }

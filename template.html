@@ -17,6 +17,18 @@
   <script src="<<lib-base-path>>lab-interactive/lab/vendor/jquery-context-menu/jquery.contextMenu.js" type="text/javascript"></script>
   <script src="<<lib-base-path>>lab-interactive/lab/vendor/jquery-selectBoxIt/jquery.selectBoxIt.min.js" type="text/javascript"></script>
   <script src='<<lib-base-path>>lab-interactive/lab/vendor/tinysort/jquery.tinysort.min.js' type='text/javascript'></script>
+  <script src='<<lib-base-path>>lab-interactive/vendor/shutterbug/shutterbug.js' type='text/javascript'></script>
+  <script src='<<lib-base-path>>lab-interactive/embeddable.js' type='text/javascript'></script>
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-6899787-28']);
+    _gaq.push(['_setAllowAnchor', true]);
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
 </head>
 <body>
 <div id='interactive-container' tabindex='0'></div>
@@ -27,12 +39,12 @@
 <script type="application/javascript">
   (function () {
     Lab.config.rootUrl = "<<lib-base-path>>lab-interactive/lab";
-    Lab.config.sharing = false;
+    Lab.config.sharing = true;
+    Lab.config.homeForSharing= 'https://lab.concord.org';
+    Lab.config.homeEmbeddablePath= '/embeddable.html#<<interactive-path>>';
     document.title = INTERACTIVE.title;
-    // Strawman setting for telling the interactive to be in "author mode",
-    // allowing things like positioning textBoxes by hand.
-    window.AUTHORING = false;
-    var controller = new Lab.InteractivesController(INTERACTIVE, '#interactive-container');
+    window.controller = new Lab.InteractivesController(INTERACTIVE, '#interactive-container');
+    Embeddable.sendGAPageview();
   }());
 </script>
 </body>
